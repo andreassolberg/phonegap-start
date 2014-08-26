@@ -4,6 +4,7 @@ define(function(require, exports, module) {
     // var $ = require('jquery');
 
     var JSO = require('../jso/jso');
+    JSO.enablejQuery($);
     console.log("READY (1)");
 
     var onReady = function() {
@@ -15,7 +16,7 @@ define(function(require, exports, module) {
             redirect_uri: "http://localhost/~andreas/phonegap-start/www/",
             authorization: "https://auth.uwap.uninettlabs.no/oauth/authorization"
         });
-
+        jso.on('redirect', window.plugins.childBrowser.showWebPage);
 
         jso.callback();
 

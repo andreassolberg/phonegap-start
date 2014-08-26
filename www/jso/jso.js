@@ -28,9 +28,30 @@ define(function(require, exports, module) {
 
 		JSO.instances[this.providerID] = this;
 
+
+		this.callbacks = {};
+
+		this.callbacks.redirect = JSO.redirect;
+
 		// console.log("Testing configuration object");
 		// console.log("foo.bar.baz (2,false)", this.config.get('foo.bar.baz', 2 ) );
 		// console.log("foo.bar.baz (2,true )", this.config.get('foo.bar.baz', 2, true ) );
+	};
+
+	JSO.redirect = function(url, callback) {
+		// prompt('Authorization url', url);
+	
+		setTimeout(function() {
+			window.location = url;
+			callback();
+		}, 2000);		
+	};
+
+	JSO.prototype.on = function(eventid, callback) {
+		if (typeof eventid !== 'string') throw new Error('Registering triggers on JSO must be identified with an event id');
+		if (typeof callback !== 'function') throw new Error('Registering a callback on JSO must be a function.');
+
+		this.callbacks[eventid] = callback;
 	};
 
 
@@ -285,11 +306,11 @@ define(function(require, exports, module) {
 
 	JSO.prototype.gotoAuthorizeURL = function(url, callback) {
 
-		prompt('Authorization url', url);
-	
-		setTimeout(function() {
-			window.location = url;
-		}, 2000);		
+
+		if (!this.callbacks.redirect || typeof this.callbacks.redirect !== 'function') 
+			throw new Error('Cannot redirect to authorization endpoint because of missing redirect handler');
+
+		this.callbacks.redirect(url, callback);
 
 	};
 
