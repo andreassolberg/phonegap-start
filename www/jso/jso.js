@@ -1,9 +1,12 @@
 /**
- * JSO - Javascript JSO Library
- * 		Version 2.0
- *   	UNINETT AS - http://uninett.no
+ * JSO - Javascript OAuth Library
+ * 
+ * 	Version 2.0
+ *  UNINETT AS - http://uninett.no
+ *  Author: Andreas Åkre Solberg <andreas.solberg@uninett.no>
+ *  Licence: 
  *   	
- * Documentation available at: https://github.com/andreassolberg/jso
+ *  Documentation available at: https://github.com/andreassolberg/jso
  */
 
 define(function(require, exports, module) {
@@ -28,7 +31,6 @@ define(function(require, exports, module) {
 
 		JSO.instances[this.providerID] = this;
 
-
 		this.callbacks = {};
 
 		this.callbacks.redirect = JSO.redirect;
@@ -39,12 +41,39 @@ define(function(require, exports, module) {
 	};
 
 	JSO.redirect = function(url, callback) {
-		// prompt('Authorization url', url);
-	
-		setTimeout(function() {
-			window.location = url;
-			callback();
-		}, 2000);		
+		window.location = url;
+	};
+
+	JSO.prototype.inappbrowser = function(params) {
+		var that = this;
+		return function(url, callback) {
+
+			var target = '_blank';
+			if (params.hasOwnProperty('target')) {
+				target = params.target;
+			}
+			var options = {};
+			var ref = window.open(url, target, options);
+
+			console.log("About to open url " + url);
+	        // Everytime the Phonegap InAppBrowsers moves to a new URL,
+	        
+	        var onNewURLinspector = function(inAppBrowserEvent) {
+
+	            //  we'll check the URL for oauth fragments...
+	            var url = inAppBrowserEvent.url;
+	            console.log("loadstop event triggered, and the url is now " + url);
+	            that.callback(url, function() {
+
+	                // When we've found OAuth credentials, we close the inappbrowser...
+	                console.log("Closing window ", ref);
+	                ref.removeEventListener('loadstop', onNewURLinspector);
+	                ref.close();
+	                if (typeof callback === 'function') callback();
+	            });
+	        };
+	        ref.addEventListener('loadstop', onNewURLinspector);
+		};
 	};
 
 	JSO.prototype.on = function(eventid, callback) {
@@ -99,7 +128,7 @@ define(function(require, exports, module) {
 			state,
 			instance;
 
-		utils.log("JSO.prototype.callback()");
+		utils.log("JSO.prototype.callback() " + url + " callback=" + typeof callback);
 
 		// If a url is provided 
 		if (url) {
@@ -192,12 +221,23 @@ define(function(require, exports, module) {
 		}
 
 
+		console.log("Successfully obtain a token, now call the callback, and may be the window closes", callback);
+
 		if (typeof callback === 'function') {
 			callback();
 		}
 
 		// utils.log(atoken);
 
+	};
+
+	JSO.prototype.dump = function() {
+
+		var txt = '';
+		var tokens = store.getTokens(this.providerID);
+		txt += 'Tokens: ' + "\n" + JSON.stringify(tokens, undefined, 4) + '\n\n';
+		txt += 'Config: ' + "\n" + JSON.stringify(this.config, undefined, 4) + "\n\n";
+		return txt;
 	};
 
 	JSO.prototype._getRequestScopes = function(opts) {
@@ -241,6 +281,27 @@ define(function(require, exports, module) {
 		}
 
 	};
+
+
+	// exp.jso_ensureTokens = function (ensure) {
+	// 	var providerid, scopes, token;
+	// 	for(providerid in ensure) {
+	// 		scopes = undefined;
+	// 		if (ensure[providerid]) scopes = ensure[providerid];
+	// 		token = store.getToken(providerid, scopes);
+
+	// 		utils.log("Ensure token for provider [" + providerid + "] ");
+	// 		utils.log(token);
+
+	// 		if (token === null) {
+	// 			jso_authrequest(providerid, scopes);
+	// 		}
+	// 	}
+
+
+	// 	return true;
+	// }
+
 
 	JSO.prototype._authorize = function(callback, opts) {
 		var 
@@ -300,7 +361,7 @@ define(function(require, exports, module) {
 		utils.log(JSON.parse(JSON.stringify(request)));
 
 		store.saveState(request.state, request);
-		this.gotoAuthorizeURL(authurl);
+		this.gotoAuthorizeURL(authurl, callback);
 	};
 
 
