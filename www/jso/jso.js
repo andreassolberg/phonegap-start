@@ -24,6 +24,10 @@ define(function(require, exports, module) {
 	var utils = require('./utils');
 	var Config = require('./Config');
 
+
+
+
+
 	var JSO = function(config) {
 
 		this.config = new Config(default_config, config);
@@ -40,6 +44,18 @@ define(function(require, exports, module) {
 		// console.log("foo.bar.baz (2,true )", this.config.get('foo.bar.baz', 2, true ) );
 	};
 
+	JSO.internalStates = [];
+	JSO.instances = {};
+	JSO.store = store;
+
+	console.log("RESET internalStates array");
+
+
+	JSO.enablejQuery = function($) {
+		JSO.$ = $;
+	};
+
+
 	JSO.redirect = function(url, callback) {
 		window.location = url;
 	};
@@ -48,31 +64,49 @@ define(function(require, exports, module) {
 		var that = this;
 		return function(url, callback) {
 
+
+	        var onNewURLinspector = function(ref) {
+	        	return function(inAppBrowserEvent) {
+
+		            //  we'll check the URL for oauth fragments...
+		            var url = inAppBrowserEvent.url;
+		            utils.log("loadstop event triggered, and the url is now " + url);
+
+		            if (that.URLcontainsToken(url)) {
+		                // ref.removeEventListener('loadstop', onNewURLinspector);
+		                setTimeout(function() {
+		                	ref.close();
+		                }, 500);
+		                
+
+			            that.callback(url, function() {
+			                // When we've found OAuth credentials, we close the inappbrowser...
+			                utils.log("Closing window ", ref);
+			                if (typeof callback === 'function') callback();
+			            });	            	
+		            }
+		            
+		        };
+		    };
+
 			var target = '_blank';
 			if (params.hasOwnProperty('target')) {
 				target = params.target;
 			}
 			var options = {};
-			var ref = window.open(url, target, options);
 
-			console.log("About to open url " + url);
+			utils.log("About to open url " + url);
+
+			var ref = window.open(url, target, options);
+			utils.log("URL Loaded... ");
+	        ref.addEventListener('loadstart', onNewURLinspector(ref));
+	        utils.log("Event listeren ardded... ", ref);
+	        
+
 	        // Everytime the Phonegap InAppBrowsers moves to a new URL,
 	        
-	        var onNewURLinspector = function(inAppBrowserEvent) {
 
-	            //  we'll check the URL for oauth fragments...
-	            var url = inAppBrowserEvent.url;
-	            console.log("loadstop event triggered, and the url is now " + url);
-	            that.callback(url, function() {
 
-	                // When we've found OAuth credentials, we close the inappbrowser...
-	                console.log("Closing window ", ref);
-	                ref.removeEventListener('loadstop', onNewURLinspector);
-	                ref.close();
-	                if (typeof callback === 'function') callback();
-	            });
-	        };
-	        ref.addEventListener('loadstop', onNewURLinspector);
 		};
 	};
 
@@ -102,14 +136,29 @@ define(function(require, exports, module) {
 	};
 
 
-	JSO.internalStates = [];
-	JSO.instances = {};
-	JSO.store = store;
 
-	JSO.enablejQuery = function($) {
-		JSO.$ = $;
+
+	/**
+	 * Do some sanity checking whether an URL contains a access_token in an hash fragment.
+	 * Used in URL change event trackers, to detect responses from the provider.
+	 * @param {[type]} url [description]
+	 */
+	JSO.prototype.URLcontainsToken = function(url) {
+		// If a url is provided 
+		if (url) {
+			// utils.log('Hah, I got the url and it ' + url);
+			if(url.indexOf('#') === -1) return false;
+			h = url.substring(url.indexOf('#'));
+			// utils.log('Hah, I got the hash and it is ' +  h);
+		}
+
+		/*
+		 * Start with checking if there is a token in the hash
+		 */
+		if (h.length < 2) return false;
+		if (h.indexOf("access_token") === -1) return false;
+		return true;
 	};
-
 
 	/**
 	 * Check if the hash contains an access token. 
@@ -214,17 +263,19 @@ define(function(require, exports, module) {
 
 		utils.log(atoken);
 
+		utils.log("Looking up internalStates storage for a stored callback... ", "state=" + atoken.state, JSO.internalStates);
+
 		if (JSO.internalStates[atoken.state] && typeof JSO.internalStates[atoken.state] === 'function') {
-			// log("InternalState is set, calling it now!");
-			JSO.internalStates[atoken.state]();
+			utils.log("InternalState is set, calling it now!");
+			JSO.internalStates[atoken.state](atoken);
 			delete JSO.internalStates[atoken.state];
 		}
 
 
-		console.log("Successfully obtain a token, now call the callback, and may be the window closes", callback);
+		utils.log("Successfully obtain a token, now call the callback, and may be the window closes", callback);
 
 		if (typeof callback === 'function') {
-			callback();
+			callback(atoken);
 		}
 
 		// utils.log(atoken);
@@ -313,7 +364,7 @@ define(function(require, exports, module) {
 		var client_id = this.config.get('client_id', null, true);
 
 		utils.log("About to send an authorization request to this entry:", authorization);
-		console.log("Options", opts);
+		utils.log("Options", opts, "callback", callback);
 
 
 		request = {
@@ -321,7 +372,10 @@ define(function(require, exports, module) {
 			"state": utils.uuid()
 		};
 
+
+
 		if (callback && typeof callback === 'function') {
+			utils.log("About to store a callback for later with state=" + request.state, callback);
 			JSO.internalStates[request.state] = callback;
 		}
 
@@ -341,7 +395,7 @@ define(function(require, exports, module) {
 			request.scope = utils.scopeList(scopes);
 		}
 
-		console.log("DEBUG REQUEST"); console.log(request);
+		utils.log("DEBUG REQUEST"); utils.log(request);
 
 		authurl = utils.encodeURL(authorization, request);
 

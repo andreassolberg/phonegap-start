@@ -10,10 +10,32 @@
         <script type="text/javascript" src="bower_components/jquery/dist/jquery.min.js"></script> 
         <script type="text/javascript" src="cordova.js"></script>
         
+        <script src="http://localhost:8080/target/target-script-min.js#anonymous"></script>
+
+
+    <script type="text/javascript">
+
+        // document.addEventListener("resume", function(e) {
+        //     console.log('resume', e);
+        // });
+
+    function handleOpenURL(url) {
+         // TODO: parse the url, and do something 
+         // setTimeout(function() {
+         //    alert("loaded:" + url);
+            window._handleOpenURL = url;
+             // TODO: call some Cordova API here
+         // }, 0);
+    }
+
+    </script>
+
         <script type="text/javascript" data-main="js/index" src="bower_components/requirejs/require.js"></script>
         <title>Hello Andreas</title>
     </head>
     <body>
+
+
 
         <div class="app">
             <h1>JSO demo</h1>

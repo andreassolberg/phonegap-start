@@ -5,25 +5,39 @@ define(function(require, exports, module) {
 
 	var JSO = require('../jso/jso');
 	JSO.enablejQuery($);
-	console.log("READY (1)");
+
+	var jso = new JSO({
+		providerId: "feideconnect",
+		client_id: "42934c73-6fae-4507-92a4-c67f87923aa9",
+		// redirect_uri: "https://static.uwap.uninettlabs.no/oauth-oob.html",
+		redirect_uri: "jsodemo://",
+		authorization: "https://auth.uwap.uninettlabs.no/oauth/authorization",
+		"debug": true
+	});
+
+
+	console.log("on ready");
+
 
 	var onReady = function() {
 
 
-		console.log("on ready");
-		var jso = new JSO({
-			providerId: "feideconnect",
-			client_id: "42934c73-6fae-4507-92a4-c67f87923aa9",
-			// redirect_uri: "https://static.uwap.uninettlabs.no/oauth-oob.html",
-			redirect_uri: "jsodemo://",
-			authorization: "https://auth.uwap.uninettlabs.no/oauth/authorization"
-		});
 
 		// When JSO want to redirect, we'll make use of phonegap inappbrowser plugin.
 		jso.on('redirect', jso.inappbrowser({"target": "_system"}) );
+		// jso.on('redirect', jso.inappbrowser({"target": "_blank"}) );
 
 		// jso.callback(url, function() {
 		// });
+
+		console.log("READY");
+
+
+		window.document.addEventListener("resume", function(e) {
+
+			console.log("Resume, and now the url is ", window._handleOpenURL, window.location);
+			jso.callback(window._handleOpenURL);
+		}, false);
 
 
 		$('#wipe').on('click', function() {
@@ -53,7 +67,7 @@ define(function(require, exports, module) {
 				},
 				dataType: 'json',
 				success: function(data) {
-					console.log("Response (google):");
+					console.log("Response (data):");
 					console.log(data);
 					$("#out").empty().append( JSON.stringify(data, undefined, 3) );
 				}
